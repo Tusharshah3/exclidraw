@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ['class'],
+  
   content: [
     './pages/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
@@ -9,6 +10,7 @@ export default {
   ],
   theme: {
     extend: {
+
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
@@ -26,7 +28,7 @@ export default {
           foreground: 'hsl(var(--popover-foreground))',
         },
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
+          DEFAULT: 'white',
           foreground: 'hsl(var(--primary-foreground))',
         },
         secondary: {
@@ -35,7 +37,7 @@ export default {
         },
         muted: {
           DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
+          foreground: 'slate-800',
         },
         accent: {
           DEFAULT: 'hsl(var(--accent))',

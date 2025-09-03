@@ -1,24 +1,7 @@
 import { HTTP_BACKEND } from "@/config";
 import axios from "axios";
-
-type Shape = {
-    type: "rect";
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-} | {
-    type: "circle";
-    centerX: number;
-    centerY: number;
-    radius: number;
-} | {
-    type: "pencil";
-    startX: number;
-    startY: number;
-    endX: number;
-    endY: number;
-}
+import {Shapes}from "./types";
+type Shape = Shapes;
 
 export async function initDraw(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
     const ctx = canvas.getContext("2d");
