@@ -1,5 +1,5 @@
 "use client";
-
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
@@ -56,14 +56,15 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-fuchsia-500 text-white">
+      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-blue-300 via-blue-100 to-blue-40 text-black">
+        <Loader2 className="w-6 h-6 animate-spin text-gray-900" />
         Loading...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen  bg-gradient-to-br from-fuchsia-300 via-fuchsia-100 to-fuchsia-400 p-8 text-slate-700">
+    <div className="min-h-screen  bg-gradient-to-br from-blue-300 via-blue-100 to-blue-400 p-8 text-slate-700">
         
       <div className="max-w-7xl mx-auto ">
         
@@ -79,31 +80,31 @@ export default function DashboardPage() {
           </button>
         </div>
         <div className="flex justify-between items-center mb-10  text-white">
-              <h1 className="text-4xl font-bold hover:text-fuchsia-900">Dashboard</h1>
+              <h1 className="text-4xl font-bold text-blue-900">Dashboard</h1>
         </div>
         {error && (
-          <p className="text-red-400 bg-red-900/50 p-3 rounded-md mb-6">
+          <p className="text-red-600 p-3 rounded-md mb-6">
             {error}
           </p>
         )}
 
         {/* --- Create & Join Buttons --- */}
         <div className="grid md:grid-cols-2 gap-8 mb-12">
-          <div className="bg-fuchsia-500 text-white hover:bg-fuchsia-600 p-6 rounded-lg shadow-lg flex flex-col items-center justify-center">
+          <div className="bg-blue-600 text-white hover:bg-blue-600/90 p-6 rounded-lg shadow-lg flex flex-col items-center justify-center">
             <h2 className="text-2xl font-semibold mb-4">Create a New Room</h2>
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="w-full bg-fuchsia-200 hover:bg-fuchsia-100 text-fuchsia-500 font-bold py-3 px-4 rounded-lg transition-colors"
+              className="w-full bg-blue-50 hover:bg-white text-blue-600 font-bold py-3 px-4 rounded-lg transition-colors"
             >
               Open Create Room Modal
             </button>
           </div>
 
-          <div className="bg-fuchsia-500 text-white hover:bg-fuchsia-600 p-6 rounded-lg shadow-lg flex flex-col items-center justify-center">
+          <div className="bg-blue-600 text-white hover:bg-blue-600/90 p-6 rounded-lg shadow-lg flex flex-col items-center justify-center">
             <h2 className="text-2xl font-semibold mb-4">Join an Existing Room</h2>
             <button
               onClick={() => setIsJoinModalOpen(true)}
-              className="w-full bg-fuchsia-200 hover:bg-fuchsia-100 text-fuchsia-500 font-bold py-3 px-4 rounded-lg transition-colors"
+              className="w-full bg-blue-50 hover:bg-white text-blue-600 font-bold py-3 px-4 rounded-lg transition-colors"
             >
               Open Join Room Modal
             </button>
@@ -112,19 +113,19 @@ export default function DashboardPage() {
 
         {/* --- Room List --- */}
         <div>
-          <h2 className="text-3xl font-semibold mb-6 text-white hover:text-fuchsia-900">Your Rooms</h2>
+          <h2 className="text-3xl font-semibold mb-6  text-blue-900">Your Rooms</h2>
           {rooms.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {rooms.map((room) => (
                 <div
                   key={room.id}
                 
-                  className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white hover:text-slate-200 p-6 rounded-lg shadow-lg flex justify-between items-center"
+                  className="bg-blue-600 hover:bg-blue-600/90 text-white hover:text-slate-200 p-6 rounded-lg shadow-lg flex justify-between items-center"
                 >
                   <span className="text-xl font-medium">Room-Name : {room.slug} <br /> adminId : {room.adminId} <br /> roomid :{room.id} <br />created at:{new Date(room.createdAt).toLocaleString()}</span>
                   <button
                     onClick={() => router.push(`/canvas/${room.id}`)}
-                    className="bg-fuchsia-200 hover:bg-fuchsia-100 text-fuchsia-500 font-bold py-2 px-5 rounded-lg transition-colors"
+                    className="bg-blue-50 hover:bg-white text-blue-600 font-bold py-2 px-5 rounded-lg transition-colors"
                   >
                     Enter
                   </button>
@@ -132,7 +133,7 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-400">
+            <p className="text-gray-700">
               You haven't joined or created any rooms yet.
             </p>
           )}

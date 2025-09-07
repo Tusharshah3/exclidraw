@@ -91,22 +91,22 @@ export const CreateRoomModal = ({ isOpen, onClose, onRoomCreated }: CreateRoomMo
                 <div className="fixed inset-0 overflow-y-auto">
                     <div className="flex min-h-full items-center justify-center p-4 text-center">
                         <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-fuchsia-50 border border-fuchsia-700 p-6 text-left align-middle shadow-xl transition-all">
-                                <Dialog.Title as="h3" className="text-2xl font-bold leading-6 text-fuchsia-700 flex justify-between items-center">
+                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-blue-50 border border-blue-700 p-6 text-left align-middle shadow-xl transition-all">
+                                <Dialog.Title as="h3" className="text-2xl font-bold leading-6 text-blue-700 flex justify-between items-center">
                                     Create a New Room
-                                    <button onClick={handleClose} className="p-1 rounded-full text-fuchsia-700 hover:bg-fuchsia-200 transition-colors">
+                                    <button onClick={handleClose} className="p-1 rounded-full text-blue-700 hover:bg-blue-200 transition-colors">
                                         <X size={20} />
                                     </button>
                                 </Dialog.Title>
                                 <div className="mt-4">
                                     <form onSubmit={handleSubmit}>
-                                        <p className="text-sm text-fuchsia-600 mb-4">Give your new collaborative space a name. This will be its unique URL.</p>
+                                        <p className="text-sm text-blue-600 mb-4">Give your new collaborative space a name. This will be its unique URL.</p>
                                         <input 
                                             type="text" 
                                             value={roomName} 
                                             onChange={(e) => setRoomName(e.target.value)} 
                                             placeholder="e.g., q4-project-kickoff" 
-                                            className="w-full p-3 bg-white border border-fuchsia-600 rounded-md text-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" 
+                                            className="w-full p-3 bg-white border border-blue-600 rounded-md text-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" 
                                             autoFocus 
                                         />
                                         
@@ -114,7 +114,7 @@ export const CreateRoomModal = ({ isOpen, onClose, onRoomCreated }: CreateRoomMo
 
                                         <div className="mt-6 flex justify-end gap-4">
                                             <button type="button" onClick={handleClose} className="px-5 py-2 bg-slate-200 text-slate-700 rounded-md hover:bg-slate-300 font-semibold transition-colors">Cancel</button>
-                                            <button type="submit" disabled={isLoading} className="px-5 py-2 bg-fuchsia-600 text-white rounded-md hover:bg-fuchsia-700 font-semibold transition-colors disabled:bg-fuchsia-400 disabled:cursor-not-allowed">
+                                            <button type="submit" disabled={isLoading} className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed">
                                                 {isLoading ? 'Creating...' : 'Create & Join'}
                                             </button>
                                         </div>

@@ -12,12 +12,12 @@ export const NavBar = ()=>{
             </div>
             <div className="flex gap-4 text-[0.75rem] md:text-[1rem] font-medium  text-white">
               <Link href={"/signin"}>
-                <Button variant={"outline"} size="lg" className=" mt-2 h-12 px-6 bold rounded-lg  bg-slate-100 text-black hover:brightness-90" >
+                <Button variant={"outline"} size="lg" className=" mt-2 h-10 px-6 bold rounded-lg  bg-color1 text-black hover:brightness-90" >
                   Sign in 
                 </Button>
               </Link>
               <Link href="/signup">
-                <Button variant="outline" size="lg" className="h-12 mt-2 px-6 rounded-lg  bg-slate-100 text-black hover:brightness-90">
+                <Button variant="outline" size="lg" className="h-10 mr-2 mt-2 px-6 rounded-lg  bg-color1 text-black hover:brightness-90">
                   Sign up
                 </Button>
               </Link>

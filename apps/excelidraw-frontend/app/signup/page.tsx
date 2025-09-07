@@ -74,7 +74,7 @@ const SignupPage = () => {
   };
 
   return (
-    <div className='bg-gradient-to-br from-red-600 via-white to-purple-600 min-h-screen'>
+    <div className='bg-gradient-to-br  from-red-600 via-blue-600  to-purple-600 min-h-screen'>
       <nav className="p-4">
         <Link href="/">
           {/* Ensure your logo is in the /public folder */}
@@ -82,7 +82,7 @@ const SignupPage = () => {
         </Link>
       </nav>
       <div className="flex items-center justify-center py-12 px-4">
-        <div className='w-full max-w-md p-8 space-y-8 bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border-2 border-fuchsia-200'>
+        <div className='w-full max-w-md p-8 space-y-8 bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border-2 border-blue-200'>
           <div className="text-center">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900">
               Create Your Account
@@ -94,28 +94,28 @@ const SignupPage = () => {
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4 rounded-md">
                <div>
-                  <input name="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full p-3 bg-white border border-fuchsia-300 rounded-md text-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" placeholder="Your Name" />
+                  <input name="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full p-3 bg-white border border-blue-300 rounded-md text-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Your Name" />
                   {errors.name && <p className='text-red-500 text-xs mt-1 px-1'>{errors.name}</p>}
                </div>
                <div>
-                  <input name="email" type="email" value={username} onChange={(e) => setUsername(e.target.value)} required className="w-full p-3 bg-white border border-fuchsia-300 rounded-md text-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" placeholder="your@email.com" />
+                  <input name="email" type="email" value={username} onChange={(e) => setUsername(e.target.value)} required className="w-full p-3 bg-white border border-blue-300 rounded-md text-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your@email.com" />
                   {errors.username && <p className='text-red-500 text-xs mt-1 px-1'>{errors.username}</p>}
                </div>
                <div>
-                  <input name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 bg-white border border-fuchsia-300 rounded-md text-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" placeholder="Password" />
+                  <input name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 bg-white border border-blue-300 rounded-md text-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Password" />
                   {errors.password && <p className='text-red-500 text-xs mt-1 px-1'>{errors.password}</p>}
                </div>
             </div>
             {errors.general && <p className='text-red-500 text-sm text-center font-semibold pt-2'>{errors.general}</p>}
             <div className="pt-2">
-              <button type='submit' disabled={authLoading} className="w-full py-3 px-4 bg-fuchsia-600 text-white font-semibold rounded-lg hover:bg-fuchsia-700 transition-all shadow-md disabled:bg-fuchsia-400 disabled:cursor-not-allowed">
+              <button type='submit' disabled={authLoading} className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all shadow-md disabled:bg-blue-400 disabled:cursor-not-allowed">
                 {authLoading ? 'Creating Account...' : 'Sign Up'}
               </button>
             </div>
           </form>
           <div className="text-center text-sm text-gray-600">
             Already have an account?{' '}
-            <Link href="/signin" className="font-medium text-fuchsia-600 hover:text-fuchsia-800">
+            <Link href="/signin" className="font-medium text-blue-600 hover:text-blue-800">
               Sign In
             </Link>
           </div>

@@ -1,72 +1,121 @@
-import React, { useRef, useState } from "react";
-import svg from "svg.js";
-interface Point {
-  x: number;
-  y: number;
-  pressure?: number;
+// ---------- Point Utilities ----------
+type GlobalPoint = [number, number];
+
+function point(x: number, y: number): GlobalPoint {
+  return [x, y];
 }
 
-interface PencilProps {
-  strokeColor?: string;
-  strokeWidth?: number;
+function pointDistance(a: GlobalPoint, b: GlobalPoint): number {
+  const dx = a[0] - b[0];
+  const dy = a[1] - b[1];
+  return Math.hypot(dx, dy);
 }
 
-const Pencil: React.FC<PencilProps> = ({
-  strokeColor = "black",
-  strokeWidth = 2,
-}) => {
-  const svgRef = useRef<SVGSVGElement | null>(null);
-  const [paths, setPaths] = useState<string[]>([]);
-  const [currentPath, setCurrentPath] = useState<string>("");
-  const [isDrawing, setIsDrawing] = useState(false);
+// ---------- Freehand Smoothing ----------
+/**
+ * Ramer–Douglas–Peucker algorithm for polyline simplification.
+ * Keeps the shape while reducing noisy points.
+ */
+function simplifyRDP(points: GlobalPoint[], epsilon: number): GlobalPoint[] {
+  if (points.length < 3) return points;
 
-  const getRelativePoint = (e: React.PointerEvent): Point => {
-    const svg = svgRef.current;
-    if (!svg) return { x: e.clientX, y: e.clientY };
-    const rect = svg.getBoundingClientRect();
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      pressure: e.pressure || 0.5,
-    };
+  const dmax = { dist: 0, index: 0 };
+
+  const lineDistance = (p: GlobalPoint, a: GlobalPoint, b: GlobalPoint) => {
+    const num = Math.abs(
+      (b[0] - a[0]) * (a[1] - p[1]) - (a[0] - p[0]) * (b[1] - a[1])
+    );
+    const den = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    return den === 0 ? pointDistance(p, a) : num / den;
   };
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    const point = getRelativePoint(e);
-    setIsDrawing(true);
-    setCurrentPath(`M ${point.x} ${point.y}`);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDrawing) return;
-    const point = getRelativePoint(e);
-    setCurrentPath((prev) => prev + ` L ${point.x} ${point.y}`);
-  };
-
-  const handlePointerUp = () => {
-    if (isDrawing && currentPath) {
-      setPaths((prev) => [...prev, currentPath]);
-      setCurrentPath("");
+  for (let i = 1; i < points.length - 1; i++) {
+    const d = lineDistance(points[i], points[0], points[points.length - 1]);
+    if (d > dmax.dist) {
+      dmax.dist = d;
+      dmax.index = i;
     }
-    setIsDrawing(false);
-  };
+  }
 
-  return (
-    <svg
-      ref={svgRef}
-      className="w-full h-full border border-gray-400 bg-white"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-    >
-      {paths.map((d, i) => (
-        <path key={i} d={d} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} />
-      ))}
-      {currentPath && (
-        <path d={currentPath} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} />
-      )}
-    </svg>
-  );
-};
+  if (dmax.dist > epsilon) {
+    const rec1 = simplifyRDP(points.slice(0, dmax.index + 1), epsilon);
+    const rec2 = simplifyRDP(points.slice(dmax.index), epsilon);
+    return rec1.slice(0, -1).concat(rec2);
+  } else {
+    return [points[0], points[points.length - 1]];
+  }
+}
 
-export default Pencil;
+// ---------- Pencil Tool with Freehand smoothing ----------
+export class Pencil {
+  private points: GlobalPoint[] = [];
+  private smoothedPath: GlobalPoint[] = [];
+  private strokeWidth: number;
+  private strokeColor: string;
+  constructor(strokeWidth: number = 2, strokeColor: string = "white") {
+    this.strokeWidth = strokeWidth;
+    this.strokeColor = strokeColor;
+  } 
+
+  addPoint(x: number, y: number) {
+    const pt = point(x, y);
+    if (
+      this.points.length === 0 ||
+      pointDistance(this.points[this.points.length - 1], pt) > 1
+    ) {
+      this.points.push(pt);
+      this.updatePath();
+    }
+  }
+
+  private updatePath() {
+    if (this.points.length < 2) return;
+    this.smoothedPath = simplifyRDP(this.points, 1.5);
+  }
+
+  getRawPoints() {
+    return this.points;
+  }
+
+  getPath() {
+    return this.smoothedPath;
+  }
+
+  reset() {
+    this.points = [];
+    this.smoothedPath = [];
+  }
+  setStrokeWidth(width: number) {
+    this.strokeWidth = width;
+  }
+
+  setStrokeColor(color: string) {
+    this.strokeColor = color;
+  }
+  getStrokeWidth() {
+    return this.strokeWidth;
+  }
+
+  getStrokeColor() {
+    return this.strokeColor;
+  }
+  draw(ctx: CanvasRenderingContext2D) {
+    if (this.smoothedPath.length < 2) return;
+
+    ctx.beginPath();
+    ctx.moveTo(this.smoothedPath[0][0], this.smoothedPath[0][1]);
+
+    for (let i = 1; i < this.smoothedPath.length; i++) {
+      ctx.lineTo(this.smoothedPath[i][0], this.smoothedPath[i][1]);
+    }
+
+    ctx.strokeStyle = this.strokeColor;
+    ctx.lineWidth = this.strokeWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    ctx.closePath();
+  }
+
+  
+}
