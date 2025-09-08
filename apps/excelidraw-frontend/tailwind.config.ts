@@ -23,6 +23,7 @@ export default {
         color6: "#334155",
         color7: "#101010",
         color8: "#4b5563",
+        color9: "#2563EB",
         lightgray:"#D3D3D3ff",
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',

@@ -98,6 +98,41 @@ app.post("/room", middleware, async (req, res) => {
         })
     }
 })
+
+app.get("/user", middleware, async (req, res) => {
+    console.log("Get user request"); // Debug log
+    //@ts-ignore
+    const userId = (req.userId);    
+    console.log("token from middleware:", req.headers.authorization); // Debug log
+    console.log("User ID from token:", userId);
+    console.log(typeof userId);
+    try {
+        const user = await prismaClient.user.findFirst({
+        where: {
+            id: userId
+        }
+    }); 
+    if (!user) {
+        res.json({
+            message: "Incorrect inputs or NULL user"
+        })
+        return;
+    }
+        res.json({
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+            }
+        })
+        console.log("User found:", user); // Debug log
+    } catch(e) {
+        res.status(411).json({
+            message: "cannot find user"
+        })
+    }
+})
+
 app.get("/rooms", middleware, async (req, res) => {
     console.log("Get rooms request"); // Debug log
     //@ts-ignore

@@ -50,7 +50,7 @@ function App() {
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Share2 className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold">Real-time Collaboration</h3>
+                <h3 className="text-xl text-color9 font-semibold">Real-time Collaboration</h3>
               </div>
               <p className="mt-4 text-color7">
                 Work together with your team in real-time. Share your drawings instantly with a simple link.
@@ -62,7 +62,7 @@ function App() {
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Users2 className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-xl  font-semibold">Multiplayer Editing</h3>
+                <h3 className="text-xl text-color9 font-semibold">Multiplayer Editing</h3>
               </div>
               <p className="mt-4 text-color7">
                 Multiple users can edit the same canvas simultaneously. See who's drawing what in real-time.
@@ -74,7 +74,7 @@ function App() {
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Sparkles className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold">Smart Drawing</h3>
+                <h3 className="text-xl text-color9 font-semibold">Smart Drawing</h3>
               </div>
               <p className="mt-4 text-color7">
                 Intelligent shape recognition and drawing assistance helps you create perfect diagrams.  <br />
@@ -89,17 +89,17 @@ function App() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-color1 rounded-3xl p-8 sm:p-16 ">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-color5 sm:text-4xl">
+              <h2 className="text-3xl font-bold tracking-tight text-color9 sm:text-4xl">
                 Ready to start creating?
               </h2>
               <p className="mx-auto mt-6 max-w-xl text-lg text-slate-700">
                 Join thousands of users who are already creating amazing diagrams and sketches.
               </p>
               <div className="mt-10 flex items-center justify-center gap-x-6">
-                <Button size="lg" variant="outline" className="h-12 px-6 bg-color5 hover:bg-white hover:text-color5 rounded-md">
+                <Button size="lg" variant="outline" className="h-12 px-6 bg-color9 hover:bg-white hover:text-color5 rounded-md">
                   Open Canvas
                 </Button>
-                <Button variant="outline" size="lg" className="h-12 px-6  bg-color5 hover:bg-white hover:text-color5 rounded-md">
+                <Button variant="outline" size="lg" className="h-12 px-6  bg-color9 hover:bg-white hover:text-color5 rounded-md">
                   View Gallery
                 </Button>
               </div>
