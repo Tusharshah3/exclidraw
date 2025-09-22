@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(cors())
 
 app.post("/signup", async (req, res) => {
-    console.log("Signup request body:", req.body); // Debug log
+    console.log("Signup request body:", req.body); 
     const parsedData = CreateUserSchema.safeParse(req.body);
     if (!parsedData.success) {
          res.status(400).json({ message: "Incorrect inputs", errors: parsedData.error.issues });
@@ -26,9 +26,9 @@ app.post("/signup", async (req, res) => {
         const user = await prismaClient.user.create({
             data: { email: username, password: hashedPassword, name }
         });
-        console.log("User created with ID:", user.id); // Debug log
-        console.log("User created with email:", user.email); // Debug log
-        console.log("User created with name:", user.name); // Debug log
+        console.log("User created with ID:", user.id); 
+        console.log("User created with email:", user.email); 
+        console.log("User created with name:", user.name); 
         console.log("User created with password ",hashedPassword);
 
         res.status(201).json({ message: "User created successfully", userId: user.id });
@@ -40,7 +40,7 @@ app.post("/signup", async (req, res) => {
 });
 
 app.post("/signin", async (req, res) => {
-    console.log("Signin request body:", req.body); // Debug log
+    console.log("Signin request body:", req.body); 
     const parsedData = SigninSchema.safeParse(req.body);
     if (!parsedData.success) {
          res.status(400).json({ message: "Incorrect inputs" });
@@ -59,18 +59,18 @@ app.post("/signin", async (req, res) => {
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-         res.status(403).json({ message: "Invalid credentials" });
+         res.status(403).json({ message: "Invalid Password" });
          return;
     }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
-    console.log("Generated JWT token for user ID:", user.id); // Debug log
-    console.log("Token:", token); // Debug log
+    console.log("Generated JWT token for user ID:", user.id); 
+    console.log("Token:", token); 
     res.json({ token });
 });
 
 app.post("/room", middleware, async (req, res) => {
-    console.log("Create room request body:", req.body); // Debug log
+    console.log("Create room request body:", req.body); 
     const parsedData = CreateRoomSchema.safeParse(req.body);
     if (!parsedData.success) {
         res.json({
@@ -100,10 +100,10 @@ app.post("/room", middleware, async (req, res) => {
 })
 
 app.get("/user", middleware, async (req, res) => {
-    console.log("Get user request"); // Debug log
+    console.log("Get user request"); 
     //@ts-ignore
     const userId = (req.userId);    
-    console.log("token from middleware:", req.headers.authorization); // Debug log
+    console.log("token from middleware:", req.headers.authorization); 
     console.log("User ID from token:", userId);
     console.log(typeof userId);
     try {
@@ -125,7 +125,7 @@ app.get("/user", middleware, async (req, res) => {
                 name: user.name,
             }
         })
-        console.log("User found:", user); // Debug log
+        console.log("User found:", user); 
     } catch(e) {
         res.status(411).json({
             message: "cannot find user"
@@ -134,11 +134,11 @@ app.get("/user", middleware, async (req, res) => {
 })
 
 app.get("/rooms", middleware, async (req, res) => {
-    console.log("Get rooms request"); // Debug log
+    console.log("Get rooms request"); 
     //@ts-ignore
     const userId = (req.userId);
-    console.log("token from middleware:", req.headers.authorization); // Debug log
-    console.log("User ID from token:", userId); // Debug log
+    console.log("token from middleware:", req.headers.authorization); 
+    console.log("User ID from token:", userId); 
     console.log(typeof userId);
     
     try {
@@ -160,7 +160,7 @@ app.get("/rooms", middleware, async (req, res) => {
         res.json({
             rooms: rooms
         })
-        console.log("Rooms found:", rooms); // Debug log
+        console.log("Rooms found:", rooms); 
     } catch(e) {
         res.status(411).json({
             message: "cannot find rooms"
@@ -169,7 +169,7 @@ app.get("/rooms", middleware, async (req, res) => {
 })
 
 app.get("/chats/:roomId", async (req, res) => {
-    console.log("Get chats request for roomId:", req.params.roomId); // Debug log
+    console.log("Get chats request for roomId:", req.params.roomId); 
     try {
         const roomId = Number(req.params.roomId);
         console.log(req.params.roomId);
@@ -178,15 +178,15 @@ app.get("/chats/:roomId", async (req, res) => {
                 roomId: roomId
             },
             orderBy: {
-                id: "desc"
+                id: "asc"
             },
-            take: 1000
+            take: 5000
         });
         if (messages.length == 0) {
-            console.log("No messages found for roomId:", roomId); // Debug log
+            console.log("No messages found for roomId:", roomId); 
             return;
         }
-        console.log("Messages found for roomId:", roomId, messages); // Debug log
+        console.log("Messages found for roomId:", roomId, messages); 
         res.json({
             messages
         })
@@ -200,7 +200,7 @@ app.get("/chats/:roomId", async (req, res) => {
 })
 
 app.get("/room/:slug", async (req, res) => {
-    console.log("Get room request for slug:", req.params.slug); // Debug log
+    console.log("Get room request for slug:", req.params.slug); 
     const slug = req.params.slug;
     const room = await prismaClient.room.findFirst({
         where: {
@@ -211,7 +211,7 @@ app.get("/room/:slug", async (req, res) => {
     res.json({
         room
     })
-    console.log("Room found roomid:", room); // Debug log
+    console.log("Room found roomid:", room); 
 })
 
 

@@ -42,7 +42,7 @@ export const JoinRoomModal = ({ isOpen, onClose }: JoinRoomModalProps) => {
     } catch (err) {
       // --- STEP 3: SHOW ERROR DIRECTLY IN THE MODAL ---
       // The backend will likely return a 404 if the room doesn't exist
-      if (axios.isAxiosError(err) && err.response?.status === 404) {
+      if (axios.isAxiosError(err) && err.response?.status === 404 || 204) {
           setError("Room not found. Please check the name and try again.");
       } else {
           setError("An unexpected error occurred. Please try again.");

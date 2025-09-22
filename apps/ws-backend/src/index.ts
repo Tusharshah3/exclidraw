@@ -75,16 +75,26 @@ wss.on("connection", function connection(ws, request) {
     // -------------------------
     if (parsedData.type === "chat") {
       const roomId = parsedData.roomId;
-      const message = parsedData.message;
+      let message: string;
 
-      console.log(`[CHAT] User ${userId} -> Room ${roomId}, saving shape`);
+      if (parsedData.message) {
+        message =
+          typeof parsedData.message === "string"
+            ? parsedData.message
+            : JSON.stringify(parsedData.message);
+      } else if (parsedData.shape) {
+        message = JSON.stringify({ shape: parsedData.shape });
+      } else {
+        console.error("[WS] Chat event missing message/shape:", parsedData);
+        return;
+      }
 
       let saved;
       try {
         saved = await prismaClient.chat.create({
           data: {
             roomId: Number(roomId),
-            message,
+            message : message ?? null,
             userId,
           },
         });
@@ -98,7 +108,7 @@ wss.on("connection", function connection(ws, request) {
       try {
         parsedMessageObj = JSON.parse(message);
       } catch (e) {
-        console.error("[WS] Failed to parse shape JSON from message:", message);
+        console.error("[WS] Failed to parse message JSON:", message);
       }
 
       users.forEach((u) => {
@@ -108,15 +118,63 @@ wss.on("connection", function connection(ws, request) {
               JSON.stringify({
                 type: "chat",
                 id: saved.id,
-                shape: parsedMessageObj ? parsedMessageObj.shape : parsedMessageObj,
+                shape: parsedMessageObj ? parsedMessageObj.shape : null,
                 roomId,
               })
             );
           } catch (e) {
-            console.warn("[WS] Failed to forward chat message to client:", e);
+            console.warn("[WS] Failed to forward chat message:", e);
           }
         }
       });
+      return;
+    }
+
+    // -------------------------
+    // UPDATE SHAPE
+    // -------------------------
+    if (parsedData.type === "update") {
+      const roomId = parsedData.roomId;
+      const shapeId = parsedData.id;
+      let shape = parsedData.shape;
+
+      if (typeof shape === "string") {
+        try {
+          const parsed = JSON.parse(shape);
+          shape = parsed.newShape || parsed;
+        } catch (e) {
+          console.error("[WS] Failed to parse shape string:", shape);
+        }
+      }
+
+      try {
+        const saved = await prismaClient.chat.update({
+          where: { id: shapeId },
+          data: {
+            message: JSON.stringify({ shape }),  // 🔹 overwrite existing JSON
+          },
+        });
+        console.log(`[DB] Shape ${shapeId} updated`);
+
+        users.forEach((u) => {
+          if (u.rooms.includes(String(roomId))) {
+            try {
+              u.ws.send(
+                JSON.stringify({
+                  type: "update",
+                  id: shapeId,
+                  shape,
+                  roomId,
+                })
+              );
+            } catch (e) {
+              console.warn("[WS] Failed to forward update:", e);
+            }
+          }
+        });
+      } catch (e) {
+        console.error(`[DB] Error updating shape ${shapeId}:`, e);
+      }
       return;
     }
 
@@ -127,11 +185,9 @@ wss.on("connection", function connection(ws, request) {
       const roomId = parsedData.roomId;
       const shapeId = parsedData.id;
 
-      console.log(`[DELETE] User ${userId} -> Room ${roomId}, deleting shape ${shapeId}`);
-
       try {
         await prismaClient.chat.delete({ where: { id: shapeId } });
-        console.log(`[DB] Shape ${shapeId} deleted from DB`);
+        console.log(`[DB] Shape ${shapeId} deleted`);
       } catch (e) {
         console.error(`[DB] Error deleting shape ${shapeId}:`, e);
       }
@@ -147,7 +203,7 @@ wss.on("connection", function connection(ws, request) {
               })
             );
           } catch (e) {
-            console.warn("[WS] Failed to forward delete event to client:", e);
+            console.warn("[WS] Failed to forward delete event:", e);
           }
         }
       });

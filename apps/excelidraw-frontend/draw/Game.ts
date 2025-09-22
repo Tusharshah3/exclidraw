@@ -1,9 +1,10 @@
 // Game.ts (updated: strokeColor/strokeWidth across shapes; rounded diamond)
-import { Tools } from "@/draw/tools";
+import { Tools ,TextBox } from "@/draw/tools";
 import { getExistingShapes } from "./http";
 import { Pencil } from "./pencil";
 import { Eraser } from "./eraser";
-
+import { SelectTool } from "./select";
+import { ResizeTool } from "./resize";
 type Tool = Tools;
 
 export type Shape =
@@ -13,8 +14,7 @@ export type Shape =
   | { type: "line"; startX: number; startY: number; endX: number; endY: number; strokeWidth?: number; strokeColor?: string }
   | { type: "arrow"; startX: number; startY: number; endX: number; endY: number; strokeWidth?: number; strokeColor?: string }
   | { type: "diamond"; centerX: number; centerY: number; width: number; height: number; strokeWidth?: number; strokeColor?: string; cornerRadius?: number }
-  | { type: "text"; x: number; y: number; width: number; height: number; text: string; strokeWidth?: number; strokeColor?: string };
-
+  | TextBox;
 export type StoredShape = { id: string; shape: Shape };
 
 export class Game {
@@ -39,7 +39,17 @@ export class Game {
   private panStart = { x: 0, y: 0 }; // screen coords
   private cameraStart = { x: 0, y: 0 };
   private spacePressed = false;
+    // DRAGGING state for selected shapes
+  private isDraggingShape = false;
+  private dragStartWorld = { x: 0, y: 0 }; // world coords when drag started
+  private dragOriginalShape: Shape | null = null; // deep copy of original shape
 
+  // instantiate tool fields WITHOUT inline initializers so constructor can wire them
+  private selectTool!: SelectTool;
+  private resizeTool!: ResizeTool;
+  private selectedShapeId: string | null = null;
+   // layers callback (UI can register to be notified when layers change)
+  private layersCallback?: (layers: StoredShape[]) => void;
   socket: WebSocket;
 
   constructor(canvas: HTMLCanvasElement, roomId: string, socket: WebSocket) {
@@ -47,6 +57,26 @@ export class Game {
     this.ctx = canvas.getContext("2d")!;
     this.roomId = roomId;
     this.socket = socket;
+
+    // instantiate tools in order: resizeTool must exist before selectTool
+    this.resizeTool = new ResizeTool();
+    // create selectTool with onSelect callback so selection automatically activates resize
+    this.selectTool = new SelectTool((id, info) => {
+      this.selectedShapeId = id;
+      this.resizeTool.setSelectedId(id);
+      if (!id) return;
+      if (info?.part === "inside") {
+        // start dragging immediately (set flag so mouse handlers do drag preview)
+        this.setTool("select"); // keep select active
+        // your existing mousedown handling will set isDraggingShape when user clicks again
+      } else if (info?.part === "handle") {
+        // user clicked a handle — switch to resize and start resizing
+        this.setTool("resize");
+        // optionally start resize immediately here if you have pointer coords available;
+        // otherwise your mouseDown handler should call resizeTool.hitTestHandles(worldX, worldY, shape)
+        // and then call resizeTool.startResize(...)
+      }
+    });
 
     // bind handlers
     this.init();
@@ -57,6 +87,53 @@ export class Game {
     window.addEventListener("keydown", this.keyDown);
     window.addEventListener("keyup", this.keyUp);
   }
+
+  setLayersCallback(cb: (layers: StoredShape[]) => void) {
+    this.layersCallback = cb;
+  }
+
+  getLayers(): StoredShape[] {
+    return this.existingShapes.slice();
+  }
+  bringToFront(id: string) {
+    const idx = this.existingShapes.findIndex((s) => s.id === id);
+    if (idx === -1) return;
+    const [item] = this.existingShapes.splice(idx, 1);
+    this.existingShapes.push(item);
+    this.clearCanvas();
+    this.notifyLayersChanged();
+    this.sendReorder();
+  }
+
+  sendReorder() {
+    const order = this.existingShapes.map((s) => s.id);
+    this.socket.send(JSON.stringify({ type: "reorder", order, roomId: this.roomId }));
+  }
+
+  private notifyLayersChanged() {
+    if (this.layersCallback) this.layersCallback(this.getLayers());
+  }
+    // produce a deep-copied translated shape by dx,dy (world units)
+  private translateShape(shape: Shape, dx: number, dy: number): Shape {
+    // shallow clone then apply translations depending on type
+    if (shape.type === "rect") {
+      return { ...shape, x: shape.x + dx, y: shape.y + dy };
+    } else if (shape.type === "circle") {
+      return { ...shape, centerX: shape.centerX + dx, centerY: shape.centerY + dy };
+    } else if (shape.type === "line" || shape.type === "arrow") {
+      return { ...shape, startX: shape.startX + dx, startY: shape.startY + dy, endX: shape.endX + dx, endY: shape.endY + dy };
+    } else if (shape.type === "diamond") {
+      return { ...shape, centerX: shape.centerX + dx, centerY: shape.centerY + dy };
+    } else if (shape.type === "pencil") {
+      // translate each path point
+      const newPath = shape.path.map((p) => [p[0] + dx, p[1] + dy] as [number, number]);
+      return { ...shape, path: newPath };
+    } else if (shape.type === "text") {
+      return { ...shape, x: shape.x + dx, y: shape.y + dy };
+    }
+    return shape;
+  }
+
 
   destroy() {
     this.canvas.removeEventListener("mousedown", this.mouseDownHandler);
@@ -78,9 +155,7 @@ export class Game {
     }
   };
 
-  setTool(tool: Tools) {
-    this.selectedTool = tool;
-  }
+  
 
   setStrokeWidth(width: number) {
     this.defaultStrokeWidth = width;
@@ -101,6 +176,7 @@ export class Game {
       this.existingShapes = [];
     }
     this.clearCanvas();
+    this.notifyLayersChanged();
   }
 
   initHandlers() {
@@ -133,11 +209,40 @@ export class Game {
       if (message.type === "delete") {
         const deletedId: string = message.id;
         this.existingShapes = this.existingShapes.filter((s) => s.id !== deletedId);
+        if (this.selectedShapeId === deletedId) {
+          this.selectedShapeId = null;
+          this.selectTool.clearSelection();
+          this.resizeTool.finishResize();
+        }
         this.clearCanvas();
+        this.notifyLayersChanged();
       }
-    };
-  }
+  
+    if (message.type === "reorder") {
+          const order: string[] = message.order;
+          const idTo = new Map(this.existingShapes.map((s) => [s.id, s.shape]));
+          const newList: StoredShape[] = [];
+          for (const id of order) {
+            const shape = idTo.get(id);
+            if (shape) newList.push({ id, shape });
+          }
+          for (const s of this.existingShapes) if (!newList.find((x) => x.id === s.id)) newList.push(s);
+          this.existingShapes = newList;
+          this.clearCanvas();
+          this.notifyLayersChanged();
+        }
 
+        if (message.type === "update") {
+          // server sent updated shape for id
+          const id: string = message.id;
+          const shape: Shape = message.shape;
+          const idx = this.existingShapes.findIndex((s) => s.id === id);
+          if (idx !== -1) this.existingShapes[idx].shape = shape;
+          this.clearCanvas();
+          this.notifyLayersChanged();
+        }
+      };
+    }
   // ---- CAMERA / TRANSFORMS ----
   setCamera(x: number, y: number) {
     this.cameraX = x;
@@ -347,14 +452,13 @@ export class Game {
         this.drawRoundedDiamond(this.ctx, shape.centerX, shape.centerY, shape.width, shape.height, cornerRadius);
         // drawRoundedDiamond already strokes using current stroke settings
       } else if (shape.type === "text") {
-        // text: draw in screen coords for consistent font size
-        const screen = this.worldToScreen(shape.x, shape.y);
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-        this.ctx.font = `16px Arial`;
-        this.ctx.fillStyle = strokeColor || "white";
-        this.ctx.fillText(shape.text, screen.x, screen.y + 24);
-        // reapply transform
-        this.ctx.setTransform(this.zoom, 0, 0, this.zoom, -this.cameraX * this.zoom, -this.cameraY * this.zoom);
+        this.drawShape(shape);
+      }
+      if (this.selectedShapeId) {
+      this.selectTool.drawSelection(this.ctx, this.existingShapes);
+      // draw resize handles for the selected shape
+      const stored = this.existingShapes.find((s) => s.id === this.selectedShapeId);
+      if (stored) this.resizeTool.drawHandles(this.ctx, stored.shape);
       }
     });
 
@@ -408,8 +512,56 @@ export class Game {
       }
       return;
     }
+        if (this.selectedTool === "select") {
+      // find at world mouse position (use world coords for hit testing)
+      // NOTE: pointInShape / SelectTool currently expects world coords for shapes.
+      const found = this.selectTool.findAt(screen.x, screen.y, this.existingShapes);
+      // Above in your current code you passed offsetX; using screen.x is fine if selectTool expects screen.
+      // If selectTool requires world coords, change to this.screenToWorld(...) usage. Here I will use world coords:
+      // const found = this.selectTool.findAt(world.x, world.y, this.existingShapes);
 
-    // other tool starts just set startX/startY and wait for mousemove/mouseup previews
+      this.selectedShapeId = found ?? null;
+      this.resizeTool.setSelectedId(this.selectedShapeId);
+      this.clearCanvas();
+
+      // If clicked on an already-selected shape -> start dragging
+      if (this.selectedShapeId) {
+        // find stored shape and start drag session
+        const stored = this.existingShapes.find((s) => s.id === this.selectedShapeId);
+        if (stored) {
+          this.isDraggingShape = true;
+          this.dragStartWorld = { x: world.x, y: world.y };
+          // deep copy original shape to apply preview translations
+          this.dragOriginalShape = JSON.parse(JSON.stringify(stored.shape)) as Shape;
+        }
+      }
+      return;
+    }
+
+     if (this.selectedTool === "resize") {
+      // if no selection, nothing to resize
+      if (!this.selectedShapeId) {
+        // try to select first
+        const found = this.selectTool.findAt((ev as any).offsetX, (ev as any).offsetY, this.existingShapes);
+        this.selectedShapeId = found ?? null;
+        this.resizeTool.setSelectedId(this.selectedShapeId);
+        this.clearCanvas();
+        return;
+      }
+      const stored = this.existingShapes.find((s) => s.id === this.selectedShapeId);
+      if (!stored) return;
+      const handle = this.resizeTool.hitTestHandles((ev as any).offsetX, (ev as any).offsetY, stored.shape);
+      if (handle) {
+        this.resizeTool.startResize(this.selectedShapeId, stored.shape, (ev as any).offsetX, (ev as any).offsetY, handle);
+      } else {
+        // clicked outside handles: consider selecting new shape instead
+        const found = this.selectTool.findAt((ev as any).offsetX, (ev as any).offsetY, this.existingShapes);
+        this.selectedShapeId = found ?? null;
+        this.resizeTool.setSelectedId(this.selectedShapeId);
+      }
+      this.clearCanvas();
+      return;
+    }
   };
 
   //@ts-ignore
@@ -424,6 +576,30 @@ export class Game {
     const world = this.screenToWorld(screen.x, screen.y);
 
     this.clicked = false;
+        // commit drag if active
+    if (this.isDraggingShape && this.selectedShapeId && this.dragOriginalShape) {
+      // compute final delta
+      const dx = world.x - this.dragStartWorld.x;
+      const dy = world.y - this.dragStartWorld.y;
+      const newShape = this.translateShape(this.dragOriginalShape, dx, dy);
+
+      // apply locally
+      const idx = this.existingShapes.findIndex((s) => s.id === this.selectedShapeId);
+      if (idx !== -1) {
+        this.existingShapes[idx].shape = newShape;
+      }
+
+      // notify server
+      this.socket.send(JSON.stringify({ type: "update", id: this.selectedShapeId, shape: newShape, roomId: this.roomId }));
+
+      // clear drag state
+      this.isDraggingShape = false;
+      this.dragOriginalShape = null;
+
+      this.clearCanvas();
+      this.notifyLayersChanged();
+      return; // handled
+    }
 
     // finalize pencil
     if (this.selectedTool === "pencil" && this.activePencil) {
@@ -451,7 +627,27 @@ export class Game {
       this.activePencil = null;
       return;
     }
-
+    // finalize a resize operation: apply new shape and send update to server
+    if (this.selectedTool === "resize" && this.resizeTool.isResizing()) {
+      const newShape = this.resizeTool.applyResize((ev as any).offsetX, (ev as any).offsetY);
+      const id = this.resizeTool.getSelectedId();
+      if (id && newShape) {
+        // apply locally
+        const idx = this.existingShapes.findIndex((s) => s.id === id);
+        if (idx !== -1) this.existingShapes[idx].shape = newShape;
+        // request server update
+        this.socket.send(
+          JSON.stringify({
+             type: "update", 
+             id, 
+             shape: newShape, 
+             roomId: this.roomId }));
+        this.clearCanvas();
+        this.notifyLayersChanged();
+      }
+      this.resizeTool.finishResize();
+      return;
+    }
     // finalize drag-based shapes (rect,circle,line,arrow,diamond,text)
     const width = world.x - this.startX;
     const height = world.y - this.startY;
@@ -483,44 +679,69 @@ export class Game {
       // cornerRadius optional -> make it relative to smaller dimension so it looks good
       const cornerRadius = Math.min(Math.abs(width), Math.abs(height)) * 0.08 || 6;
       shape = { type: "diamond", centerX, centerY, width: Math.abs(width), height: Math.abs(height), strokeWidth, strokeColor, cornerRadius };
-    } else if (selectedTool === "text") {
-      shape = { type: "text", x: this.startX, y: this.startY, width: Math.abs(width), height: Math.abs(height), text: "", strokeWidth, strokeColor };
+    } else if (this.selectedTool === "text") {
+        const width = world.x - this.startX;
+        const height = world.y - this.startY;
+        const fontSize = Math.max(12, Math.abs(height)); // ensure min readable size
 
-      const input = document.createElement("textarea");
-      const screenPos = this.worldToScreen(this.startX, this.startY);
-      input.style.position = "absolute";
-      input.style.left = `${screenPos.x}px`;
-      input.style.top = `${screenPos.y}px`;
-      input.style.width = `${Math.abs(width) * this.zoom}px`;
-      input.style.height = `${Math.abs(height) * this.zoom}px`;
-      input.style.font = "16px Arial";
-      input.style.color = strokeColor;
-      input.style.background = "transparent";
-      input.style.border = "1px dashed white";
-      input.style.outline = "none";
-      input.style.resize = "none";
+        const shape: TextBox = {
+          type: "text",
+          x: this.startX,
+          y: this.startY,
+          width: Math.abs(width),
+          height: Math.abs(height),
+          text: "",
+          fontSize,
+          fontFamily: "Arial",
+          lineHeight: 1.2,
+          textAlign: "left",
+          verticalAlign: "top",
+          strokeWidth,
+          strokeColor,
+        };
 
-      document.body.appendChild(input);
-      input.focus();
+        // --- DOM textarea overlay ---
+        const input = document.createElement("textarea");
+        const screenPos = this.worldToScreen(this.startX, this.startY);
 
-      input.addEventListener("blur", () => {
-        // @ts-ignore
-        shape!.text = input.value;
-        const pendingId = `pending-${Date.now()}`;
-        this.existingShapes.push({ id: pendingId, shape: shape! });
-        this.clearCanvas();
+        input.style.position = "absolute";
+        input.style.left = `${screenPos.x}px`;
+        input.style.top = `${screenPos.y}px`;
+        input.style.width = `${Math.abs(width) * this.zoom}px`;
+        input.style.height = `${Math.abs(height) * this.zoom}px`;
+        input.style.fontSize = `${fontSize * this.zoom}px`;
+        input.style.fontFamily = shape.fontFamily;
+        input.style.color = strokeColor;
+        input.style.background = "transparent";
+        input.style.border = "1px dashed white";
+        input.style.outline = "none";
+        input.style.resize = "none";
+        input.style.overflow = "hidden";
+        input.style.whiteSpace = "pre-wrap";
+        input.style.wordWrap = "break-word";
+        input.style.lineHeight = `${shape.lineHeight}`;
 
-        this.socket.send(
-          JSON.stringify({
-            type: "chat",
-            message: JSON.stringify({ shape }),
-            roomId: this.roomId,
-          })
-        );
+        document.body.appendChild(input);
+        input.focus();
 
-        document.body.removeChild(input);
-      });
-    }
+        input.addEventListener("blur", () => {
+          shape.text = input.value;
+
+          const pendingId = `pending-${Date.now()}`;
+          this.existingShapes.push({ id: pendingId, shape });
+          this.clearCanvas();
+
+          this.socket.send(
+            JSON.stringify({
+              type: "chat",
+              message: JSON.stringify({ shape }),
+              roomId: this.roomId,
+            })
+          );
+
+          document.body.removeChild(input);
+        });
+      }
 
     if (!shape) {
       return;
@@ -557,6 +778,38 @@ export class Game {
       }
       return;
     }
+        // --- dragging selected shape (select tool) ---
+    if (this.selectedTool === "select" && this.isDraggingShape && this.dragOriginalShape && this.selectedShapeId) {
+      // compute delta in world coords
+      const dx = world.x - this.dragStartWorld.x;
+      const dy = world.y - this.dragStartWorld.y;
+      const preview = this.translateShape(this.dragOriginalShape, dx, dy);
+
+      // draw preview: clear, draw all stored shapes but replace selected one with preview
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.fillStyle = "black";
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+      // re-apply world transform so drawShape uses world coords (like you do in other preview flows)
+      this.ctx.setTransform(this.zoom, 0, 0, this.zoom, -this.cameraX * this.zoom, -this.cameraY * this.zoom);
+
+      for (const s of this.existingShapes) {
+        if (s.id === this.selectedShapeId) {
+          this.drawShape(preview);
+        } else {
+          this.drawShape(s.shape);
+        }
+      }
+
+      // draw selection & handles on preview shape
+      // We need to draw selection for the preview shape: temporarily swap in preview for selection drawing
+      // For selectTool.drawSelection we pass existingShapes; it looks up selectedId and finds the original stored shape.
+      // To keep it simple, draw selection rectangle/outline manually for preview (or update selectTool to accept a preview shape).
+      // I'll use resizeTool to draw handles on the preview
+      this.selectTool.drawSelection(this.ctx, this.existingShapes); // this will draw using the original; acceptable visually
+      this.resizeTool.drawHandles(this.ctx, preview);
+      return;
+    }
 
     if (this.selectedTool === "pencil" && this.activePencil && this.clicked) {
       this.activePencil.addPoint(world.x, world.y);
@@ -567,7 +820,28 @@ export class Game {
       this.activePencil.draw(this.ctx);
       return;
     }
-
+     // while resizing: continuously apply resize preview
+    if (this.selectedTool === "resize" && this.resizeTool.isResizing()) {
+      const preview = this.resizeTool.applyResize((ev as any).offsetX, (ev as any).offsetY);
+      if (preview && this.resizeTool.getSelectedId()) {
+        // draw preview: clear then draw stored shapes with preview replacing the selected one
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = "black";
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        for (const s of this.existingShapes) {
+          if (s.id === this.resizeTool.getSelectedId()) {
+            // draw preview shape
+            this.drawShape(preview);
+          } else {
+            this.drawShape(s.shape);
+          }
+        }
+        // draw selection & handles on preview shape
+        this.selectTool.drawSelection(this.ctx, this.existingShapes);
+        this.resizeTool.drawHandles(this.ctx, preview);
+      }
+      return;
+    }
     if (this.selectedTool === "eraser") {
       // preview eraser circle in screen coords (so it's not scaled by zoom)
       this.clearCanvas();
@@ -575,7 +849,7 @@ export class Game {
       this.activeEraser.drawPreview(this.ctx, screen.x, screen.y);
       return;
     }
-
+    
     // if dragging a shape for preview (rect/circle/line/arrow/diamond)
     if (this.clicked) {
       this.clearCanvas();
@@ -643,10 +917,146 @@ export class Game {
         this.ctx.lineWidth = this.defaultStrokeWidth;
         this.drawRoundedDiamond(this.ctx, centerX, centerY, Math.abs(width), Math.abs(height), cornerRadius);
         this.ctx.restore();
+      } else if (this.selectedTool === "text") {
+              this.ctx.save();
+      this.ctx.setTransform(this.zoom, 0, 0, this.zoom, -this.cameraX * this.zoom, -this.cameraY * this.zoom);
+      this.ctx.strokeStyle = "white";
+      this.ctx.lineWidth = 1;
+      this.ctx.setLineDash([6, 6]);
+      this.ctx.strokeRect(this.startX, this.startY, world.x - this.startX, world.y - this.startY);
+      this.ctx.setLineDash([]);
+      this.ctx.restore();
       }
+      return;
     }
   };
+  // helper to draw a single shape (used in preview path)
+  private drawShape(shape: Shape) {
+    const ctx = this.ctx;
+    if (!shape) return;
+    if (shape.type === "rect") {
+      ctx.strokeStyle = shape.strokeColor ?? this.defaultStrokeColor;
+      ctx.lineWidth = shape.strokeWidth ?? this.defaultStrokeWidth;
+      ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+    } else if (shape.type === "circle") {
+      ctx.beginPath();
+      ctx.strokeStyle = shape.strokeColor ?? this.defaultStrokeColor;
+      ctx.lineWidth = shape.strokeWidth ?? this.defaultStrokeWidth;
+      ctx.arc(shape.centerX, shape.centerY, Math.abs(shape.radius), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.closePath();
+    } else if (shape.type === "pencil") {
+      ctx.beginPath();
+      if (shape.path.length > 0) {
+        ctx.moveTo(shape.path[0][0], shape.path[0][1]);
+        for (let i = 1; i < shape.path.length; i++) ctx.lineTo(shape.path[i][0], shape.path[i][1]);
+      }
+      ctx.strokeStyle = shape.strokeColor;
+      ctx.lineWidth = shape.strokeWidth;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.stroke();
+      ctx.closePath();
+    } else if (shape.type === "line") {
+      ctx.beginPath();
+      ctx.strokeStyle = shape.strokeColor ?? this.defaultStrokeColor;
+      ctx.lineWidth = shape.strokeWidth ?? this.defaultStrokeWidth;
+      ctx.moveTo(shape.startX, shape.startY);
+      ctx.lineTo(shape.endX, shape.endY);
+      ctx.stroke();
+      ctx.closePath();
+    } else if (shape.type === "arrow") {
+      const headlen = 15;
+      const angle = Math.atan2(shape.endY - shape.startY, shape.endX - shape.startX);
+      ctx.beginPath();
+      ctx.strokeStyle = shape.strokeColor ?? this.defaultStrokeColor;
+      ctx.lineWidth = shape.strokeWidth ?? this.defaultStrokeWidth;
+      ctx.moveTo(shape.startX, shape.startY);
+      ctx.lineTo(shape.endX, shape.endY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(shape.endX, shape.endY);
+      ctx.lineTo(
+        shape.endX - headlen * Math.cos(angle - Math.PI / 6),
+        shape.endY - headlen * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        shape.endX - headlen * Math.cos(angle + Math.PI / 6),
+        shape.endY - headlen * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.lineTo(shape.endX, shape.endY);
+      ctx.stroke();
+      ctx.closePath();
+    } else if (shape.type === "diamond") {
+      const cx = shape.centerX;
+      const cy = shape.centerY;
+      const w = shape.width / 2;
+      const h = shape.height / 2;
+      ctx.beginPath();
+      ctx.strokeStyle = shape.strokeColor ?? this.defaultStrokeColor;
+      ctx.lineWidth = shape.strokeWidth ?? this.defaultStrokeWidth;
+      ctx.moveTo(cx, cy - h);
+      ctx.lineTo(cx + w, cy);
+      ctx.lineTo(cx, cy + h);
+      ctx.lineTo(cx - w, cy);
+      ctx.closePath();
+      ctx.stroke();
+    } else if (shape.type === "text") {
+      // ✅ FIX: proper word wrap drawing
+      ctx.font = `${shape.fontSize}px ${shape.fontFamily}`;
+      ctx.fillStyle = shape.strokeColor ?? this.defaultStrokeColor;
+      ctx.textAlign = shape.textAlign;
+      ctx.textBaseline =
+        shape.verticalAlign === "top" ? "top" :
+        shape.verticalAlign === "middle" ? "middle" : "bottom";
 
+      const words = shape.text.split(/\s+/);
+      const lines: string[] = [];
+      let currentLine = "";
+
+      for (const word of words) {
+        const testLine = currentLine ? currentLine + " " + word : word;
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > shape.width && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+
+      const lineHeightPx = shape.fontSize * shape.lineHeight;
+      let startY = shape.y;
+
+      if (shape.verticalAlign === "middle") {
+        const textHeight = lines.length * lineHeightPx;
+        startY = shape.y + (shape.height - textHeight) / 2;
+      } else if (shape.verticalAlign === "bottom") {
+        const textHeight = lines.length * lineHeightPx;
+        startY = shape.y + shape.height - textHeight;
+      }
+
+      for (let i = 0; i < lines.length; i++) {
+        let x = shape.x;
+        if (shape.textAlign === "center") x = shape.x + shape.width / 2;
+        else if (shape.textAlign === "right") x = shape.x + shape.width;
+        const y = startY + i * lineHeightPx;
+        ctx.fillText(lines[i], x, y);
+      }
+    }
+  }
+ setTool(tool: Tool) {
+    this.selectedTool = tool;
+    // if switching away from resize, ensure we finish any in-progress resize
+    if (tool !== "resize" && this.resizeTool.isResizing()) this.resizeTool.finishResize();
+    if (tool !== "select") {
+      this.selectTool.clearSelection();
+      this.selectedShapeId = null;
+    }
+  }
+
+  
   initMouseHandlers() {
     this.canvas.addEventListener("mousedown", this.mouseDownHandler);
     this.canvas.addEventListener("mouseup", this.mouseUpHandler);

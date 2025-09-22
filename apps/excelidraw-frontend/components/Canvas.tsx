@@ -14,6 +14,7 @@ import {
   ZoomIn,
   ZoomOut,
   Move,
+
 } from "lucide-react";
 import { Game } from "@/draw/Game";
 import { Tools } from "@/draw/tools";
@@ -120,10 +121,10 @@ function Topbar({
   setStroke: (n: number) => void;
 }) {
   return (
-    <div style={{ position: "fixed", top: 10, left: 10, zIndex: 999 }}>
+    <div style={{ position: "fixed", top: 10, left: 10, zIndex: 999 , maxWidth: "96vw", maxHeight: "96vh"}}>
       <div
-        className="flex gap-2 bg-black/50 p-2 rounded-md items-center"
-        style={{ display: "flex", alignItems: "center" }}
+        className="flex flex-wrap  bg-black/50 p-1 rounded-md items-center"
+        style={{ display: "flex", alignItems: "center" ,maxWidth: "90vw"}}
       >
         <IconButton
           onClick={() => setSelectedTool("pencil")}
