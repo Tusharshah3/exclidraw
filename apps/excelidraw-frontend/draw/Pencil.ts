@@ -1,62 +1,112 @@
-// Define the structure of a plain object representation of a pencil stroke.
-// This is what we'll send over the network and save to the database.
-export interface PencilShape {
-    type: "pencil";
-    points: { x: number; y: number }[];
-    color: string;
+// pencil.ts - Freehand smoothing and drawing utility
+
+type GlobalPoint = [number, number];
+
+function point(x: number, y: number): GlobalPoint {
+  return [x, y];
 }
 
-/**
- * A class to manage the state and drawing of a single, continuous pencil stroke.
- */
+function pointDistance(a: GlobalPoint, b: GlobalPoint): number {
+  const dx = a[0] - b[0];
+  const dy = a[1] - b[1];
+  return Math.hypot(dx, dy);
+}
+
+// Ramer–Douglas–Peucker for simplification
+function simplifyRDP(points: GlobalPoint[], epsilon: number): GlobalPoint[] {
+  if (points.length < 3) return points;
+
+  let dmax = 0;
+  let index = 0;
+
+  const lineDistance = (p: GlobalPoint, a: GlobalPoint, b: GlobalPoint) => {
+    const num = Math.abs((b[0] - a[0]) * (a[1] - p[1]) - (a[0] - p[0]) * (b[1] - a[1]));
+    const den = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    return den === 0 ? pointDistance(p, a) : num / den;
+  };
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const d = lineDistance(points[i], points[0], points[points.length - 1]);
+    if (d > dmax) {
+      index = i;
+      dmax = d;
+    }
+  }
+
+  if (dmax > epsilon) {
+    const rec1 = simplifyRDP(points.slice(0, index + 1), epsilon);
+    const rec2 = simplifyRDP(points.slice(index), epsilon);
+    return rec1.slice(0, -1).concat(rec2);
+  } else {
+    return [points[0], points[points.length - 1]];
+  }
+}
+
 export class Pencil {
-    public points: { x: number; y: number }[];
-    private color: string;
+  private points: GlobalPoint[] = [];
+  private smoothed: GlobalPoint[] = [];
+  private strokeWidth: number;
+  private strokeColor: string;
 
-    constructor(startX: number, startY: number, color: string) {
-        this.points = [{ x: startX, y: startY }];
-        this.color = color;
+  constructor(strokeWidth = 2, strokeColor = "white") {
+    this.strokeWidth = strokeWidth;
+    this.strokeColor = strokeColor;
+  }
+
+  addPoint(x: number, y: number) {
+    const p = point(x, y);
+    if (this.points.length === 0 || pointDistance(this.points[this.points.length - 1], p) > 0.5) {
+      this.points.push(p);
+      this.updateSmoothed();
     }
+  }
 
-    /**
-     * Adds a new point to the stroke as the mouse moves.
-     * @param x - The x-coordinate of the new point.
-     * @param y - The y-coordinate of the new point.
-     */
-    addPoint(x: number, y: number) {
-        this.points.push({ x, y });
+  private updateSmoothed() {
+    if (this.points.length < 2) {
+      this.smoothed = [...this.points];
+      return;
     }
+    // epsilon tuned for a balance of smoothing/detail
+    this.smoothed = simplifyRDP(this.points, 1.5);
+  }
 
-    /**
-     * Renders the pencil stroke onto a given canvas rendering context.
-     * @param ctx - The 2D canvas context to draw on.
-     */
-    draw(ctx: CanvasRenderingContext2D) {
-        if (this.points.length < 2) return;
+  getPath(): [number, number][] {
+    return this.smoothed.map((p) => [p[0], p[1]]);
+  }
 
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 2; // This can be a future enhancement
-        ctx.lineCap = 'round'; // Makes the line ends smoother
-        ctx.lineJoin = 'round'; // Makes the line corners smoother
-        ctx.beginPath();
-        ctx.moveTo(this.points[0].x, this.points[0].y);
+  getStrokeWidth() {
+    return this.strokeWidth;
+  }
 
-        for (let i = 1; i < this.points.length; i++) {
-            ctx.lineTo(this.points[i].x, this.points[i].y);
-        }
-        ctx.stroke();
+  setStrokeWidth(w: number) {
+    this.strokeWidth = w;
+  }
+
+  getStrokeColor() {
+    return this.strokeColor;
+  }
+
+  setStrokeColor(c: string) {
+    this.strokeColor = c;
+  }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    if (!this.smoothed || this.smoothed.length === 0) return;
+    ctx.beginPath();
+    ctx.moveTo(this.smoothed[0][0], this.smoothed[0][1]);
+    for (let i = 1; i < this.smoothed.length; i++) {
+      ctx.lineTo(this.smoothed[i][0], this.smoothed[i][1]);
     }
+    ctx.strokeStyle = this.strokeColor;
+    ctx.lineWidth = this.strokeWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    ctx.closePath();
+  }
 
-    /**
-     * Converts the Pencil class instance into a plain serializable object
-     * that can be sent over the network or saved.
-     * @returns A PencilShape object.
-     */
-    toShapeObject(): PencilShape {
-        return {
-            type: "pencil",
-            points: this.points,
-            color: this.color
-        };
-    }
+  reset() {
+    this.points = [];
+    this.smoothed = [];
+  }
 }

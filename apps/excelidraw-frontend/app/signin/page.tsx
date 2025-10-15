@@ -36,6 +36,8 @@ const Signin = () => {
       
       if (response.data && response.data.token) { 
             localStorage.setItem('authToken', response.data.token);
+            const newtoken=localStorage.getItem('authToken');
+            console.log('Token stored in localStorage:', newtoken);
             setShowAlert(true);
             setTimeout(() => {
               router.push('/dashboard');
@@ -73,7 +75,7 @@ const Signin = () => {
   
   return (
     // The component now returns a React Fragment <> containing all the elements
-    <div className='bg-gradient-to-br from-red-600 via-white  to-purple-600 text-white'>
+    <div className='bg-gradient-to-br  from-red-600 via-blue-600  to-purple-600  text-white'>
     <nav>
         <div className=" brand flex gap-2 items-center  ">
           <Link href={"/"} >          
@@ -85,20 +87,20 @@ const Signin = () => {
    
     <div className="flex items-center   justify-center min-h-screen ">
       
-      <div className='w-[450px] shadow-lg rounded-2xl border-2 border-black '>
+      <div className='w-[450px] shadow-lg rounded-2xl border-1 border-blue-600 bg-white/80 backdrop-blur-sm '>
         <div className="m-4 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 ">
             Welcome back !
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-1xl text-gray-800">
             login to continue
           </p>
         </div>
 
         {/* The <form> element now handles the layout and submission */}
         <form className="mt-8 m-4 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div className="pt-4">
+          <div className="rounded-md shadow-sm -space-y-px ">
+            <div className="pt-4 ">
               <Input
                 value={username}
                 onChange={handleInputChange(setUsername, 'username')}
@@ -106,6 +108,7 @@ const Signin = () => {
                 disabled={authLoading}
                 label={'Email'}
                 inputId={'username'}
+                className='w-full p-3 bg-white border border-blue-300 rounded-md text-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500'
                 type='email'
               />
               {errors.username && <p className='text-red-500 text-sm mt-1 px-1'>{errors.username}</p>}
@@ -117,6 +120,7 @@ const Signin = () => {
                 type='password'
                 placeholder='Password...'
                 disabled={authLoading}
+                className='w-full p-3 bg-white border border-blue-300 rounded-md text-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500'
                 label={'Password'}
                 inputId={'password'}
               />
@@ -132,35 +136,24 @@ const Signin = () => {
               variant="primary" 
               size="lg" 
               disabled={authLoading}
-              className="w-full"
+              className="w-full bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all shadow-md disabled:bg-blue-400 disabled:cursor-not-allowed"
             >
               {authLoading ? ' Logging' : 'Sign in'}
             </Button>
           </div>
         </form>
-        <div className=" bold flex items-center justify-center">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-600 ">
-            ...
-          </h2>
-        </div>
-        <div>
-          <h2 className="text-2xl  font-bold tracking-tight text-gray-900 flex items-center justify-center ">
-            New User ! Signup
-          </h2>
-          
-          <div className="mb-4 items-center justify-center flex gap-4 text-[0.75rem] md:text-[1rem] font-medium  text-white">
-              <Link href={"/signup"}>
-                <Button variant={"primary"} size="lg" className=" mt-2 h-12 w-[400px] px-6 bold rounded-lg bg-blue-600   hover:brightness-90" >
-                  Sign up
-                </Button>
-              </Link>
+        <div className="text-center text-sm text-gray-800  mb-14">
+            New User?{' '}
+            <Link href="/signup" className=" font-medium text-blue-600 hover:text-blue-800">
+              Sign Up
+            </Link>
           </div>
-        </div>
+         
       </div>
       
       {/* The Alert is positioned outside the main div to act as an overlay */}
       {showAlert && (
-        <Alert text='Loggging ! Redirecting to Dashboard...' />
+        <Alert text='Logging ! Redirecting to Dashboard...' />
       )}
     </div>
      </div>
