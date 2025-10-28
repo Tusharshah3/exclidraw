@@ -166,8 +166,8 @@ Offscreen Canvas (future feature) for performance boosts.
 
 🧑‍💻 Author
 
-Your Name — Full Stack Engineer
-📧 your.email@example.com
+Tushar shah   — Full Stack Engineer
+📧 Tusharshah372003@gmail.com
 
 🌐 your-portfolio-link
 
