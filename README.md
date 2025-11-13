@@ -59,7 +59,7 @@ Cache (optional)	Redis	Stores room state for quick replay
 Auth	JWT	Secure user-level WebSocket access
 ⚙️ Installation
 1️⃣ Clone the repo
-git clone https://github.com/your-username/excalidraw-clone.git
+git clone ####
 cd excalidraw-clone
 
 2️⃣ Install dependencies
