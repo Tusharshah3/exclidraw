@@ -59,6 +59,37 @@ Next.js Frontend – Canvas rendering engine, UI, tools, events, optimistic upda
             │  room creation, auth, list  │
             └─────────────────────────────┘
 
+
+but i want   this architecture and i am working on this please give me some time ,
+            ┌──────────────────────────┐
+            │        Frontend          │
+            │   (Next.js + Canvas)     │
+            └─────────────┬────────────┘
+                          │
+                          ▼
+          🔵 WebSocket Backend (real-time)
+             - Sync shapes
+             - Manages undo/redo
+             - Lives in Redis (not in-memory)
+                          │
+             If room has active users → use Redis  
+             If no users → save & clear Redis  
+                          │
+                          ▼
+            🟥 Redis (cache + real-time state)
+             stores:
+            - shape list per room
+            - tempId map
+            - undo/redo stacks
+            - active users list
+                          │
+                          ▼
+            🟦 PostgreSQL (long-term)
+             stores:
+            - saved shapes
+            - rooms
+            - users
+
 ******** Real-Time Sync Architecture
 Why WebSocket is required
 
