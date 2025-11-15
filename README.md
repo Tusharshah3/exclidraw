@@ -1,177 +1,310 @@
-Excalidraw-like Collaborative Whiteboard
+Exclidraw – Real-Time Collaborative Whiteboard
 
-Real-time collaborative whiteboard built with Next.js, Prisma, WebSocket, and Redis (optional)
+A fully real-time, Excalidraw-like drawing application built with WebSockets, Next.js, PostgreSQL, Prisma, and a custom rendering engine.
 
-🧠 Overview
+📌 Overview
 
-This project is a real-time collaborative drawing board, similar to Excalidraw
-, where multiple users can draw, write, erase, and manipulate shapes on a shared canvas simultaneously.
+Exclidraw is a collaborative whiteboard application where multiple users can draw, write, erase, move, resize, and edit shapes in real time—similar to Excalidraw or Google Jamboard.
 
-It uses a modern full-stack architecture —
+It is built as a monorepo using TurboRepo, separating:
 
-Next.js (frontend) for an interactive canvas UI
+Frontend (Next.js)
 
-WebSocket (Node.js + ws) for real-time synchronization
+HTTP Backend (Node.js + Express + Prisma)
 
-Prisma ORM with PostgreSQL for persistent state
+WebSocket Backend (ws)
 
-Redis (optional) for caching active room data
+Shared libs (types, DB, utils)
 
-🚀 Features
+🎯 What This App Solves
 
-✅ Real-time multi-user drawing
-✅ Tools — Pencil, Rectangle, Circle, Arrow, Line, Diamond, TextBox, Select, Resize, Eraser
-✅ Camera — Pan and Zoom support
-✅ Live collaboration with instant shape updates
-✅ Offline-first drawing (pending → synced IDs)
-✅ Permanent storage (PostgreSQL)
-✅ Secure JWT-based WebSocket authentication
-✅ Automatic resync on reconnect
-✅ Layer reordering and shape persistence
+Most existing online whiteboards are complex or paid.
+This project solves:
 
-🧩 Architecture Overview
-flowchart LR
-A[User 1 Canvas] <-->|WebSocket| B[WebSocket Server]
-A2[User 2 Canvas] <-->|WebSocket| B
-B -->|Prisma ORM| C[(PostgreSQL DB)]
-B -->|Cache state| D[(Redis - optional)]
-C -->|HTTP GET| A
-C -->|HTTP GET| A2
+Instant collaboration – multiple users draw together.
 
+Cross-device editing – works in browser, mobile, touchscreen.
 
-Flow Summary:
+Persistent canvas – saved to PostgreSQL automatically.
 
-User draws → shape sent via WebSocket (chat event).
+Real-time broadcasting – no reload required.
 
-Server saves it in DB, then broadcasts to all users in the same room.
+Undo/Redo per user – maintain local drawing history while syncing globally.
 
-All clients receive update, render shape, and replace pending-* ID with server ID.
+It is a complete real-time system that demonstrates concurrency control, CRDT-like behavior, client-side rendering, and synchronized canvas state.
 
-On reload, shapes are reloaded from DB via REST endpoint (getExistingShapes).
+✨ Key Features
+🖊️ Drawing Tools
 
-🧱 Tech Stack
-Layer	Technology	Description
-Frontend	Next.js (React + Canvas API)	User interface & drawing logic
-Backend	Node.js + ws	Real-time WebSocket server
-ORM	Prisma	Database ORM for PostgreSQL
-Database	PostgreSQL	Stores rooms, users, shapes
-Cache (optional)	Redis	Stores room state for quick replay
-Auth	JWT	Secure user-level WebSocket access
-⚙️ Installation
-1️⃣ Clone the repo
-git clone ####
-cd excalidraw-clone
+Pencil (smooth freehand paths)
 
-2️⃣ Install dependencies
+Line tool
+
+Arrow tool
+
+Rectangle
+
+Diamond
+
+Circle
+
+Text Tool
+
+Eraser
+
+Move/Hand tool
+
+Resize selected shapes
+
+Selection tool
+
+Bring-to-front reordering
+
+Stroke width + color controls
+
+🧠 Real-Time Collaboration
+
+WebSocket syncing for:
+
+draw, update, delete
+
+undo / redo
+
+reorder layers
+
+Conflict-free updates using tempIds → serverId mapping
+
+Server broadcasts shape updates to all users in the room
+
+🔒 Authentication + Rooms
+
+JWT-based authentication
+
+User can Create Room / Join Room
+
+Each room maintains its own canvas + participants
+
+Late joiners receive full canvas state from HTTP API
+
+⚡ Performance
+
+requestAnimationFrame rendering loop
+
+Offscreen world transformations (zooming, panning)
+
+Only draw shapes that changed
+
+Optimized pencil smoothing with Ramer–Douglas–Peucker algorithm
+
+🧭 Canvas Controls
+
+Zoom In/Out
+
+Pan / Spacebar drag
+
+Reset camera
+
+World-to-Screen + Screen-to-World coordinate system
+
+🧵 Undo / Redo (local + synced)
+
+Each client maintains:
+
+undoStack
+
+redoStack
+
+Undo/Redo also broadcast to the room
+
+When a user disconnects:
+
+the server can optionally persist final state
+
+🏗️ Architecture
+apps/
+ ├── http-backend/        → REST API (rooms, auth, initial shapes)
+ ├── ws-backend/          → Real-Time WebSocket Server
+ └── frontend/            → Next.js Whiteboard UI
+
+packages/
+ ├── db/                  → Prisma schema + client
+ ├── backend-common/      → Shared config (JWT, constants)
+ └── shared/              → Zod types, TS utils
+
+Architecture Flow
+         ┌──────────────────────┐
+         │      Frontend        │
+         │  (Next.js + Canvas)  │
+         └──────────┬───────────┘
+                    │
+          WebSocket │ Real-time updates
+                    ▼
+         ┌──────────────────────┐
+         │     WS Backend       │
+         │ (ws, tempId→id sync) │
+         └──────────┬───────────┘
+                    │
+                    │ Save, update, delete shapes
+                    ▼
+         ┌──────────────────────┐
+         │     PostgreSQL       │
+         │     (via Prisma)     │
+         └──────────┬───────────┘
+                    │
+     Initial Load   │ HTTP (GET /room/:id/shapes)
+                    ▼
+         ┌──────────────────────┐
+         │    HTTP Backend      │
+         └──────────────────────┘
+
+🧰 Tech Stack
+Frontend
+
+Next.js 14 (App Router)
+
+TypeScript
+
+TailwindCSS (UI)
+
+Canvas 2D API (custom rendering engine)
+
+requestAnimationFrame for optimized redraw
+
+Backend
+
+Node.js (Express)
+
+ws (WebSocket server)
+
+JWT for auth
+
+Prisma ORM
+
+PostgreSQL database
+
+Monorepo
+
+pnpm
+
+TurboRepo
+
+Shared packages for types/client/environment
+
+🚀 Installation & Setup
+1. Clone the repo
+git clone https://github.com/Tusharshah3/exclidraw.git
+cd exclidraw
 pnpm install
 
-3️⃣ Setup environment variables
+2. Set environment variables
 
-Create a .env file:
+Create .env in:
 
-DATABASE_URL="postgresql://user:password@localhost:5432/whiteboard"
-JWT_SECRET="your_super_secret_key"
-REDIS_URL="redis://localhost:6379"
+apps/http-backend
 
-4️⃣ Run migrations
+apps/ws-backend
+
+packages/db
+
+Include:
+
+DATABASE_URL=postgresql://...
+JWT_SECRET=yourSecret
+
+3. Migrate database
+cd packages/db
 pnpm prisma migrate dev
 
-5️⃣ Start backend WebSocket server
-pnpm tsx apps/backend/ws-server.ts
-
-6️⃣ Start Next.js frontend
+4. Start all services
 pnpm dev
 
-🧠 Data Model (Prisma)
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  chats     Chat[]
-}
+🧪 How Concurrency Is Solved
+✔ TempId → ServerId Sync
 
-model Room {
-  id        Int      @id @default(autoincrement())
-  name      String
-  chats     Chat[]
-}
+When a user draws:
 
-model Chat {
-  id        Int      @id @default(autoincrement())
-  roomId    Int
-  message   String?
-  userId    String
-  room      Room     @relation(fields: [roomId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-}
+A shape is created with a temporary ID (pending-1234)
 
-💬 WebSocket Events
-Type	Description	Direction	Payload Example
-join_room	Join a whiteboard session	Client → Server	{ type: "join_room", roomId: 21 }
-chat	Create new shape	Client ↔ Server	{ type: "chat", tempId: "pending-1", shape: {...}, roomId: 21 }
-update	Modify existing shape	Client ↔ Server	{ type: "update", id: 33, shape: {...}, roomId: 21 }
-delete	Remove shape	Client ↔ Server	{ type: "delete", id: 33, roomId: 21 }
-reorder	Change layer order	Client ↔ Server	{ type: "reorder", order: [12, 14, 11], roomId: 21 }
-🧠 Real-Time Flow Example
-sequenceDiagram
-    participant U1 as User 1
-    participant WS as WebSocket Server
-    participant DB as PostgreSQL
+Sent immediately to WebSocket server
 
-    U1->>WS: { type: "chat", tempId: "pending-123", shape: {...} }
-    WS->>DB: INSERT INTO Chat
-    DB-->>WS: { id: 87 }
-    WS-->>U1: { type: "chat", id: 87, tempId: "pending-123", shape: {...} }
-    WS-->>OtherUsers: { type: "chat", id: 87, shape: {...} }
+Server saves it and broadcasts:
 
-🧰 Core Frontend Files
-File	Description
-Game.ts	Core class controlling all drawing & WebSocket logic
-pencil.ts	Pencil tool implementation
-select.ts	Shape selection, hit-testing
-resize.ts	Shape resizing handles
-eraser.ts	Collision-based eraser
-http.ts	Fetches shapes on reconnect
-🔒 Security & Access Control
+{ id: 57, tempId: "pending-1234", shape: {...} }
 
-JWT authentication is mandatory for every connection.
 
-Each user can only join authorized rooms.
+Client replaces the pending shape with real server ID
 
-Server verifies tokens and room IDs before adding users to room lists.
+👉 No duplicates
+👉 No conflict on creation
 
-Malformed messages or oversized payloads are safely ignored.
+✔ Server is always the source of truth for updates
 
-⚡ Optimization
+Every update (resize/move/edit) is sent to WS server
 
-Debounced updates reduce WebSocket spam.
+Server writes to DB → broadcasts to everyone
 
-Shape re-rendering only redraws deltas.
+All clients replace the local version with server version
 
-Cached room states in Redis for faster recovery.
+👉 Prevents race conditions
+👉 Later update always wins
 
-Offscreen Canvas (future feature) for performance boosts.
+✔ Undo / Redo (local + synced)
 
-🧩 Future Improvements
+Each client stores snapshots:
 
-✅ Add WebRTC for cursor position sync
+undoStack = [state1, state2, ...]
+redoStack = []
 
-✅ Add Undo/Redo stack (CRDT / OT based)
 
-✅ Add collaborative text editing
+Undo/Redo actions:
 
-✅ Add shape grouping and export as image
+Modify local canvas
 
-✅ Deploy backend on multiple nodes using Redis Pub/Sub
+Broadcast new state via WebSocket
 
-🧑‍💻 Author
+Other clients replace their state
 
-Tushar shah   — Full Stack Engineer
-📧 Tusharshah372003@gmail.com
+🎨 Screenshots (add your own)
+📍 Whiteboard
+📍 Rooms Dashboard
+📍 Real-time cursor movement
+📍 Tools panel
+📍 Shape drawing example
 
-🌐 your-portfolio-link
+🏆 What You Accomplished
 
-🧾 License
+Built a complete real-time collaborative drawing engine from scratch
 
-This project is licensed under the MIT License.
-Feel free to use, modify, and distribute with attribution.
+Implemented pencil smoothing, resize handles, snapping, and shape previews
+
+Designed a real-time protocol (temp ids, sync events, update collisions)
+
+Built a fully working concurrency-safe drawing system
+
+Implemented zoom, pan, camera transformations
+
+Designed a modular monorepo architecture
+
+Implemented Undo/Redo system that syncs across clients
+
+Built production-ready WebSocket backend with reconnection + heartbeat
+
+🔮 Future Improvements
+
+Live cursors of other users
+
+Multi-user awareness (colors per user)
+
+Export board to PNG / SVG / JSON
+
+Offline-first (CRDT/Yjs integration)
+
+Better text editing (rich text)
+
+Grouping shapes
+
+Collaboration cursors + user highlights
+
+📚 License
+
+MIT — free to use, modify, and share.
